@@ -69,6 +69,10 @@ DEFAULT_TEST_METADATA = {
     "TC-007": {
         "name": "Stops, Route Editing & Map Waypoint Placement",
         "objective": "This test validates how a user can modify a roadtrip beyond simple waypoint reordering or deletion, including designating stops vs. passthroughs, modifying route details and descriptions, directly clicking the map to place new waypoints, dragging map pins to adjust routes, dynamic route recalculation, and verifying exact multi-phase persistence."
+    },
+    "TC-008": {
+        "name": "Roadtrip Details, Date/Time Changes & Persistence",
+        "objective": "This test verifies that a user can create a baseline roadtrip, edit roadtrip-level details (trip name, description, start date/time, return date), validate date change behavior and route integrity, save the roadtrip, clear the Planner in-memory state, and reopen the saved roadtrip with strict persistence validation."
     }
 }
 
@@ -81,7 +85,7 @@ def test_reporter(request):
     """
     # Detect Test ID from markers or test name
     test_id = "TC-UNKNOWN"
-    for mark in ("tc001", "tc002", "tc003", "tc004", "tc005", "tc006", "tc007"):
+    for mark in ("tc001", "tc002", "tc003", "tc004", "tc005", "tc006", "tc007", "tc008"):
         if request.node.get_closest_marker(mark):
             # Format as TC-001, TC-002, etc.
             raw_id = mark.upper()
