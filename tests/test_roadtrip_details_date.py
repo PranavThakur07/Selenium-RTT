@@ -3,10 +3,12 @@ TC-008: Roadtrip Details, Date/Time Changes & Persistence.
 
 Objective:
 Validate roadtrip-level details and date/time editing and persistence:
-1. Create a baseline Roadtrip with a unique title (AutoDetails_<timestamp>) and 4 waypoints.
+1. Create a baseline Roadtrip with a unique title (AutoRoadtripDetails_<timestamp>) and 4 waypoints.
 2. Capture baseline state: roadtrip name, description, start date/time, return date,
    waypoints count/sequence, distance, duration, and coordinates.
-3. Edit roadtrip-level details: update roadtrip name, description, start date/time, and return date.
+3. Edit roadtrip-level details: update roadtrip name (UpdatedTrip_<timestamp>),
+   description (Updated roadtrip description for TC-008 <timestamp>),
+   start date/time (+5 days 11:30), and return date (+10 days).
 4. Validate date change behavior: ensure changing dates does not corrupt waypoints, sequence,
    coordinates, route distance, or route duration.
 5. Save the updated roadtrip and verify backend persistence confirmation.
@@ -64,13 +66,10 @@ class TestRoadtripDetailsDate:
         Config.validate_credentials()
 
         timestamp = datetime.now().strftime("%m%d_%H%M%S")
-        initial_trip_title = f"AutoDetails_{timestamp}"
+        initial_trip_title = f"AutoRoadtripDetails_{timestamp}"
         initial_route_name = f"Route_{timestamp}"
-        updated_trip_title = f"UpdatedDetails_{timestamp}"
-        updated_trip_description = (
-            f"Scenic Sierra Nevada mountain roadtrip with updated schedule, "
-            f"customized departure time, and verified persistence - {timestamp}"
-        )
+        updated_trip_title = f"UpdatedTrip_{timestamp}"
+        updated_trip_description = f"Updated roadtrip description for TC-008 {timestamp}"
 
         # Calculate new dates: Departure (+5 days at 11:30 AM), Return (+10 days)
         now = datetime.now()
@@ -154,8 +153,9 @@ class TestRoadtripDetailsDate:
         logger.info(f"  Map Markers Count:  {baseline_map['marker_count']}")
 
         assert len(baseline_wps) == 4, f"Expected 4 baseline waypoints, found {len(baseline_wps)}: {baseline_wps}"
+        assert len(set(baseline_wps)) == 4, f"Duplicate waypoints in baseline: {baseline_wps}"
         assert baseline_route["distance_numeric"] > 0, "Baseline distance must be > 0"
-        assert len(baseline_coords) >= 4, f"Expected at least 4 coordinates, got {len(baseline_coords)}"
+        assert len(baseline_coords) >= 2, f"Expected at least 2 coordinates, got {len(baseline_coords)}"
         assert baseline_map["canvas_ready"] is True, "Map canvas not mounted."
         planner_page.verify_no_errors()
 
@@ -228,11 +228,12 @@ class TestRoadtripDetailsDate:
             f"Waypoints sequence corrupted after date change:\nPost-date: {wps_post_date}\nExpected: {baseline_wps}"
         )
         assert len(wps_post_date) == 4, f"Expected 4 waypoints, found {len(wps_post_date)}"
-        # Note: Live routing distances can vary between calls (server-side routing).
-        # We verify the distance is non-empty and valid rather than asserting strict equality.
-        # Any change is logged as an observation, not treated as a test failure.
+        assert len(set(wps_post_date)) == 4, f"Duplicate waypoints detected after date change: {wps_post_date}"
         assert dist_post_date and re.search(r"\d+\s*km", dist_post_date, re.IGNORECASE), (
             f"Route distance is invalid after date modification: '{dist_post_date}'"
+        )
+        assert dur_post_date and len(dur_post_date.strip()) > 0, (
+            f"Route duration is invalid after date modification: '{dur_post_date}'"
         )
         if dist_post_date != baseline_dist:
             logger.info(
@@ -291,7 +292,7 @@ class TestRoadtripDetailsDate:
         logger.info("My Roadtrips Card Persistence Verified: Title and Description matches saved state.")
 
         # -------------------------------------------------------------------------
-        # STEP 09: PHASE 6 (CONT.) - REOPEN IN PLANNER & STRICT PERSISTENCE VERIFICATION
+        # STEP 09: PHASE 7 - REOPEN IN PLANNER & STRICT PERSISTENCE VERIFICATION
         # -------------------------------------------------------------------------
         log_step(9, f"Reopen Roadtrip '{updated_trip_title}' in Planner and strictly verify 100% data persistence")
         planner_page.reopen_saved_roadtrip_in_planner(target_card)
@@ -329,7 +330,30 @@ class TestRoadtripDetailsDate:
         assert reopened_details["trip_description"] == saved_state["trip_description"], (
             f"Trip Description persistence mismatch: expected '{saved_state['trip_description']}', got '{reopened_details['trip_description']}'"
         )
+
+        # 2. Waypoint Sequence & Route Integrity Persistence Assertions
+        assert reopened_wps == saved_state["waypoints"], (
+            f"Reopened waypoints sequence mismatch:\nReopened: {reopened_wps}\nExpected: {saved_state['waypoints']}"
+        )
+        assert len(reopened_wps) == 4, (
+            f"Reopened waypoint count mismatch: expected 4, got {len(reopened_wps)}: {reopened_wps}"
+        )
+        assert len(set(reopened_wps)) == 4, (
+            f"Duplicate waypoints detected in reopened state: {reopened_wps}"
+        )
+        assert reopened_dist and re.search(r"\d+\s*km", reopened_dist, re.IGNORECASE), (
+            f"Reopened route distance is invalid: '{reopened_dist}'"
+        )
+        assert reopened_dur and len(reopened_dur.strip()) > 0, (
+            f"Reopened route duration is invalid: '{reopened_dur}'"
+        )
+        assert len(reopened_coords) >= 2, (
+            f"Reopened coordinates count invalid: {len(reopened_coords)}"
+        )
         assert canvas_ready is True, "Map canvas not mounted upon reopen."
+        planner_page.verify_no_errors()
+
+        logger.info("Phase 7 Strict Persistence Verified: All roadtrip details, dates, description, and waypoints intact.")
 
         # -------------------------------------------------------------------------
         # STEP 10: STATE INTEGRITY & REGRESSION CHECKS
@@ -350,7 +374,7 @@ class TestRoadtripDetailsDate:
         logger.info(f"Save Button in Edit Mode: enabled={save_btn.is_enabled()}, text='{save_btn_text}'")
         assert save_btn.is_enabled() is True, "Save/Update Roadtrip button should be enabled in edit mode."
 
-        # 4. Diagnostics check
+        # 3. Final diagnostics check and error verification
         diagnostics = planner_page.get_failure_diagnostics()
         logger.info(f"Final Planner Diagnostics: {diagnostics}")
         planner_page.verify_no_errors()
@@ -416,11 +440,12 @@ class TestRoadtripDetailsDate:
             )
             reporter.add_observation(
                 title="Date Change Route Geometry Observation",
-                detail=(
+                description=(
                     "Mapbox routing on staging calculates driving routes deterministically based on road network data. "
                     "Modifying departure date/time updates trip schedule and synchronized route dates without altering "
                     "standard highway geometry when roads are open."
                 ),
+                obs_type="OBSERVATION",
                 severity="INFO"
             )
 

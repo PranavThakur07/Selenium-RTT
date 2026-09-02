@@ -189,20 +189,35 @@ class PlannerPage(BasePage):
         """, trip_name_el, trip_name)
 
     def get_roadtrip_name(self, timeout: int = 25) -> str:
-        """Returns the current roadtrip-level name from the Planner sidebar."""
+        """Returns the current roadtrip-level name from the Planner sidebar or summary card."""
         def _has_name(driver):
+            # 1. Input field
             els = driver.find_elements(*self.TRIP_NAME_INPUT)
             if els:
                 val = (els[0].get_attribute("value") or "").strip()
                 if val:
                     return val
+            # 2. Reopened preview / summary card heading
+            heading_els = driver.find_elements(
+                By.CSS_SELECTOR,
+                ".routeForm .headtitle h6, .headtitle h6, .groupRoutesHeader__title, .createRoadTripBox h6"
+            )
+            for h in heading_els:
+                txt = (h.text or "").strip()
+                if txt:
+                    return txt
             return False
 
         try:
-            return self.wait_for_condition(_has_name, timeout=timeout, message="Roadtrip name input not populated.")
+            return self.wait_for_condition(_has_name, timeout=timeout, message="Roadtrip name not populated.")
         except Exception:
-            trip_name_el = self.find(self.TRIP_NAME_INPUT, timeout=3)
-            return (trip_name_el.get_attribute("value") or "").strip() if trip_name_el else ""
+            for sel in [self.TRIP_NAME_INPUT, (By.CSS_SELECTOR, ".routeForm .headtitle h6, .headtitle h6")]:
+                els = self.find_all(sel, timeout=1)
+                if els:
+                    val = (els[0].get_attribute("value") if els[0].tag_name.lower() == "input" else els[0].text) or ""
+                    if val.strip():
+                        return val.strip()
+            return ""
 
     def set_roadtrip_description(self, description: str) -> None:
         """Sets the roadtrip-level description in the Planner sidebar."""
@@ -217,20 +232,38 @@ class PlannerPage(BasePage):
         """, desc_el, description)
 
     def get_roadtrip_description(self, timeout: int = 25) -> str:
-        """Returns the current roadtrip-level description from the Planner sidebar."""
+        """Returns the current roadtrip-level description from the Planner sidebar or summary card."""
         def _has_val(driver):
+            # 1. Textarea field
             els = driver.find_elements(*self.TRIP_DESCRIPTION_INPUT)
             if els:
                 val = (els[0].get_attribute("value") or "").strip()
                 if val:
                     return val
+            # 2. Reopened summary card
+            desc_items = driver.find_elements(By.CSS_SELECTOR, ".routeFormInfoDetails")
+            for item in desc_items:
+                lis = item.find_elements(By.TAG_NAME, "li")
+                if len(lis) >= 2 and "description" in (lis[0].text or "").lower():
+                    txt = (lis[1].text or "").strip()
+                    if txt:
+                        return txt
             return False
 
         try:
             return self.wait_for_condition(_has_val, timeout=timeout, message="Trip description input not populated.")
         except Exception:
-            desc_el = self.find(self.TRIP_DESCRIPTION_INPUT, timeout=3)
-            return (desc_el.get_attribute("value") or "").strip() if desc_el else ""
+            el = self.find(self.TRIP_DESCRIPTION_INPUT, timeout=1)
+            if el:
+                val = (el.get_attribute("value") or "").strip()
+                if val:
+                    return val
+            desc_items = self.find_all((By.CSS_SELECTOR, ".routeFormInfoDetails"), timeout=1)
+            for item in desc_items:
+                lis = item.find_elements(By.TAG_NAME, "li")
+                if len(lis) >= 2 and "description" in (lis[0].text or "").lower():
+                    return (lis[1].text or "").strip()
+            return ""
 
     def set_roadtrip_dates(self, start_datetime: str, end_date: str) -> None:
         """
@@ -268,36 +301,61 @@ class PlannerPage(BasePage):
             """, route_start_els[0], start_datetime)
 
     def get_roadtrip_start_date(self, timeout: int = 25) -> str:
-        """Returns the current start_date input value."""
+        """Returns the current start_date departure value (ISO format YYYY-MM-DDTHH:MM)."""
         def _has_val(driver):
-            els = driver.find_elements(*self.START_DATE_INPUT)
-            if els:
-                val = (els[0].get_attribute("value") or "").strip()
-                if val:
-                    return val
+            # 1. Input fields (#route_start_date or #start_date)
+            for loc in [self.ROUTE_START_DATE_INPUT, self.START_DATE_INPUT]:
+                els = driver.find_elements(*loc)
+                if els:
+                    val = (els[0].get_attribute("value") or "").strip()
+                    if val:
+                        return val
+            # 2. Reopened summary card (DD/MM/YYYY, HH:MM:SS)
+            items = driver.find_elements(By.CSS_SELECTOR, ".routeFormInfoDetails")
+            for item in items:
+                lis = item.find_elements(By.TAG_NAME, "li")
+                if len(lis) >= 2 and "start date" in (lis[0].text or "").lower():
+                    raw_dt = (lis[1].text or "").strip()
+                    if raw_dt:
+                        m = re.search(r"(\d{2})/(\d{2})/(\d{4}),?\s*(\d{2}):(\d{2})", raw_dt)
+                        if m:
+                            day, mon, yr, hr, minute = m.groups()
+                            return f"{yr}-{mon}-{day}T{hr}:{minute}"
+                        return raw_dt
             return False
 
         try:
             return self.wait_for_condition(_has_val, timeout=timeout, message="Start date input not populated.")
         except Exception:
-            el = self.find(self.START_DATE_INPUT, timeout=3)
-            return (el.get_attribute("value") or "").strip() if el else ""
+            return ""
 
     def get_roadtrip_end_date(self, timeout: int = 25) -> str:
-        """Returns the current end_date input value."""
+        """Returns the current return end_date value (ISO format YYYY-MM-DD)."""
         def _has_val(driver):
+            # 1. Input field (#end_date)
             els = driver.find_elements(*self.END_DATE_INPUT)
             if els:
                 val = (els[0].get_attribute("value") or "").strip()
                 if val:
                     return val
+            # 2. Reopened summary card (DD/MM/YYYY)
+            items = driver.find_elements(By.CSS_SELECTOR, ".routeFormInfoDetails")
+            for item in items:
+                lis = item.find_elements(By.TAG_NAME, "li")
+                if len(lis) >= 2 and any(k in (lis[0].text or "").lower() for k in ["return date", "end date"]):
+                    raw_d = (lis[1].text or "").strip().rstrip(",")
+                    if raw_d:
+                        m = re.search(r"(\d{2})/(\d{2})/(\d{4})", raw_d)
+                        if m:
+                            day, mon, yr = m.groups()
+                            return f"{yr}-{mon}-{day}"
+                        return raw_d
             return False
 
         try:
             return self.wait_for_condition(_has_val, timeout=timeout, message="End date input not populated.")
         except Exception:
-            el = self.find(self.END_DATE_INPUT, timeout=3)
-            return (el.get_attribute("value") or "").strip() if el else ""
+            return ""
 
     def get_roadtrip_details(self, timeout: int = 25) -> Dict[str, str]:
         """Returns a dictionary containing all roadtrip-level field values."""
@@ -704,7 +762,25 @@ class PlannerPage(BasePage):
 
         # Explicitly wait for autocomplete dropdown options to appear in portal
         logger.info("Waiting for autocomplete dropdown options in portal...")
-        first_option = self.wait_until_visible(self.AUTOCOMPLETE_OPTIONS, timeout=15)
+        first_option = None
+        for attempt in range(2):
+            try:
+                first_option = self.wait_until_visible(self.AUTOCOMPLETE_OPTIONS, timeout=8 if attempt == 0 else 12)
+                break
+            except Exception:
+                if attempt == 0:
+                    logger.info(f"Retrying query entry for {waypoint_name} ('{query}')...")
+                    try:
+                        container.click()
+                        input_el.send_keys(Keys.CONTROL + "a")
+                        input_el.send_keys(Keys.BACKSPACE)
+                        time.sleep(0.3)
+                        input_el.send_keys(query)
+                    except Exception:
+                        pass
+        if not first_option:
+            first_option = self.wait_until_visible(self.AUTOCOMPLETE_OPTIONS, timeout=10)
+
         selected_text = first_option.text.strip()
         logger.info(f"Clicking {waypoint_name} dropdown option: '{selected_text.replace(chr(10), ', ')}'")
 
@@ -1185,86 +1261,67 @@ class PlannerPage(BasePage):
         if not see_routes_btn:
             see_routes_btn = self.wait_until_clickable(self.SEE_ALL_ROUTES_BTN, timeout=10)
 
-        # Click See All Routes with retry
-        logger.info("Waiting for route card in group routes list...")
-        for attempt in range(3):
-            self.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", see_routes_btn)
-            time.sleep(0.5)
-            self.execute_script("arguments[0].click();", see_routes_btn)
-            try:
-                self.wait_for_condition(
-                    lambda d: bool(d.find_elements(By.CSS_SELECTOR, "a.editTripOption, .journeyBox--groupRoutes")),
-                    timeout=8
-                )
-                break
-            except Exception:
-                logger.info(f"Retrying 'See All Routes' click (Attempt {attempt + 2}/3)...")
-                time.sleep(1.0)
+        # Click See All Routes if not already in group routes view
+        if not bool(self.driver.find_elements(By.CSS_SELECTOR, ".groupRoutesHeader, .journeyBox--groupRoutes")):
+            logger.info("Waiting for route card in group routes list...")
+            for attempt in range(3):
+                self.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", see_routes_btn)
+                time.sleep(0.5)
+                self.execute_script("arguments[0].click();", see_routes_btn)
+                try:
+                    self.wait_for_condition(
+                        lambda d: bool(d.find_elements(By.CSS_SELECTOR, ".groupRoutesHeader, .journeyBox--groupRoutes, a.editTripOption")),
+                        timeout=8
+                    )
+                    break
+                except Exception:
+                    logger.info(f"Retrying 'See All Routes' click (Attempt {attempt + 2}/3)...")
+                    time.sleep(1.0)
 
-        # In routes view, locate the route edit button and click
-        logger.info("Locating and clicking Edit route button to open Planner...")
+        # In routes view, wait for shimmer/skeleton to disappear
+        logger.info("Waiting for group routes view and shimmer to settle...")
+        try:
+            self.wait_for_condition(
+                lambda d: not bool(d.find_elements(By.CSS_SELECTOR, ".customShimmer, .shimmer, .loading, .skeleton")),
+                timeout=15
+            )
+        except Exception:
+            pass
+
         time.sleep(1.0)
-
-        edit_btn = self.wait_until_clickable(
-            (By.CSS_SELECTOR, ".journeyBox--groupRoutes a.editTripOption, a.editTripOption"),
-            timeout=15
+        logger.info("Locating and clicking Edit route button to open Planner...")
+        edit_btn_locator = (
+            By.CSS_SELECTOR,
+            ".journeyBox--groupRoutes .seeDetailsBox a.editTripOption, .journeyBox--groupRoutes .upcomingJourneyList a.editTripOption, .journeyBox--groupRoutes a.editTripOption, a.editTripOption"
         )
+        edit_btn = self.wait_until_clickable(edit_btn_locator, timeout=25)
         self.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", edit_btn)
         time.sleep(0.5)
-        self.execute_script("arguments[0].click();", edit_btn)
+        self.execute_script("""
+            arguments[0].dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            }));
+        """, edit_btn)
 
         # Wait for Planner tab to load and roadtrip data to populate
-        logger.info("Waiting for reopened roadtrip data to populate in Planner...")
-        time.sleep(2)
+        logger.info("Waiting for reopened roadtrip and route data to populate in Planner...")
 
-        # The page may show either:
-        # (A) A preview card with "Update Roadtrip" button -> need to click it to enter edit mode
-        # (B) The edit form directly with #trip_name already present and populated
-        # Handle both states with a polling loop
-        deadline = time.time() + 45
-        populated = False
-        last_click_t = 0
-        while time.time() < deadline:
-            # Check if edit form is already visible and populated
-            trip_name_els = self.driver.find_elements(By.ID, "trip_name")
-            if trip_name_els:
-                val = (trip_name_els[0].get_attribute("value") or "").strip()
-                if val:
-                    populated = True
-                    break
+        def _is_reopened_ready(driver):
+            waypoints = self.get_all_selected_waypoints()
+            dist = self.get_route_distance()
+            title = self.get_roadtrip_name(timeout=1)
+            return bool(len(waypoints) >= 2 and dist and any(c.isdigit() for c in dist) and title)
 
-            # Check if preview card "Update Roadtrip" button is shown and click it
-            now = time.time()
-            if now - last_click_t >= 3.0:
-                update_btns = self.driver.find_elements(
-                    By.XPATH,
-                    "//button[contains(@class,'btnStyle') and contains(normalize-space(.), 'Update Roadtrip')] | "
-                    "//button[normalize-space(.)='Update Roadtrip'] | "
-                    "//a[normalize-space(.)='Update Roadtrip']"
-                )
-                for ub in update_btns:
-                    try:
-                        if ub.is_displayed():
-                            logger.info("Preview card detected - using native click on 'Update Roadtrip' button...")
-                            self.execute_script(
-                                "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", ub
-                            )
-                            time.sleep(0.3)
-                            try:
-                                ub.click()
-                            except Exception:
-                                ActionChains(self.driver).move_to_element(ub).click().perform()
-                            last_click_t = time.time()
-                            time.sleep(2.0)
-                            break
-                    except Exception:
-                        pass
-
-            time.sleep(0.5)
-
-        if populated:
+        try:
+            self.wait_for_condition(
+                _is_reopened_ready,
+                timeout=25,
+                message="Timed out waiting for reopened roadtrip data to populate."
+            )
             logger.info("Saved roadtrip successfully reopened and populated in Planner tab.")
-        else:
+        except Exception:
             logger.warning("Reopened roadtrip data condition wait finished.")
 
     def delete_roadtrip(self, trip_name: Optional[str] = None) -> bool:
