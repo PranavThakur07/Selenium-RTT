@@ -1,0 +1,139 @@
+================================================================================
+          ROADTRIPTRIBES (RTT) SELENIUM + PYTEST AUTOMATION TEST COMMANDS
+================================================================================
+
+--------------------------------------------------------------------------------
+1. QUICK START / PREREQUISITES
+--------------------------------------------------------------------------------
+# Ensure your virtual environment is activated:
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+
+# Ensure dependencies are installed:
+pip install -r requirements.txt
+
+# Ensure .env exists with your test credentials:
+# (Copy from .env.example if not already present)
+Copy-Item .env.example .env
+
+
+--------------------------------------------------------------------------------
+2. RUNNING INDIVIDUAL TEST CASES (HEADED / VISIBLE BROWSER)
+--------------------------------------------------------------------------------
+# TC-001: Multi-Waypoint Roadtrip Creation & Reordering
+python -m pytest tests/test_roadtrip_creation.py -v -s --headless false
+
+# TC-002: Random GPX Route Import & Reopen
+python -m pytest tests/test_gpx_import.py -v -s --headless false
+
+# TC-003: Edit & Switch Between Multiple Roadtrips
+python -m pytest tests/test_roadtrip_editing.py -v -s --headless false
+
+# TC-004: Invalid Route & Error Handling
+python -m pytest tests/test_invalid_route_handling.py -v -s --headless false
+
+# TC-005: Roadtrip Lifecycle, Persistence & State Regression
+python -m pytest tests/test_roadtrip_lifecycle.py -v -s --headless false
+
+# TC-006: Waypoint Deletion, Route Restructuring & Recovery
+python -m pytest tests/test_waypoint_deletion.py -v -s --headless false
+
+# TC-007: Stops Route Editing, Placement & Waypoint Conversion
+python -m pytest tests/test_stops_route_editing_map.py -v -s --headless false
+
+# TC-008: Roadtrip Details, Date/Time Changes & Persistence
+python -m pytest tests/test_roadtrip_details_date.py -v -s --headless false
+
+
+--------------------------------------------------------------------------------
+3. RUNNING INDIVIDUAL TEST CASES (HEADLESS MODE)
+--------------------------------------------------------------------------------
+# TC-001
+python -m pytest tests/test_roadtrip_creation.py -v -s
+
+# TC-002
+python -m pytest tests/test_gpx_import.py -v -s
+
+# TC-003
+python -m pytest tests/test_roadtrip_editing.py -v -s
+
+# TC-004
+python -m pytest tests/test_invalid_route_handling.py -v -s
+
+# TC-005
+python -m pytest tests/test_roadtrip_lifecycle.py -v -s
+
+# TC-006
+python -m pytest tests/test_waypoint_deletion.py -v -s
+
+# TC-007
+python -m pytest tests/test_stops_route_editing_map.py -v -s
+
+# TC-008
+python -m pytest tests/test_roadtrip_details_date.py -v -s
+
+
+--------------------------------------------------------------------------------
+4. RUNNING BY PYTEST MARKERS
+--------------------------------------------------------------------------------
+# Run TC-001 by marker:
+python -m pytest -m tc001 -v -s --headless false
+
+# Run TC-002 by marker:
+python -m pytest -m tc002 -v -s --headless false
+
+# Run TC-003 by marker:
+python -m pytest -m tc003 -v -s --headless false
+
+# Run TC-004 by marker:
+python -m pytest -m tc004 -v -s --headless false
+
+# Run TC-005 by marker:
+python -m pytest -m tc005 -v -s --headless false
+
+# Run TC-006 by marker:
+python -m pytest -m tc006 -v -s --headless false
+
+# Run TC-007 by marker:
+python -m pytest -m tc007 -v -s --headless false
+
+# Run TC-008 by marker:
+python -m pytest -m tc008 -v -s --headless false
+
+
+--------------------------------------------------------------------------------
+5. RUNNING WITH INLINE CREDENTIALS & GEOLOCATION (POWERSHELL)
+--------------------------------------------------------------------------------
+# Run TC-001 with inline credentials & San Francisco Geolocation:
+$env:RTT_TEST_EMAIL="pranav.designoweb@gmail.com"; $env:RTT_TEST_PASSWORD="your_password"; $env:RTT_GEO_LATITUDE="37.7749"; $env:RTT_GEO_LONGITUDE="-122.4194"; python -m pytest tests/test_roadtrip_creation.py -v -s --headless false
+
+# Run TC-008 with inline credentials & San Francisco Geolocation:
+$env:RTT_TEST_EMAIL="pranav.designoweb@gmail.com"; $env:RTT_TEST_PASSWORD="your_password"; $env:RTT_GEO_LATITUDE="37.7749"; $env:RTT_GEO_LONGITUDE="-122.4194"; python -m pytest tests/test_roadtrip_details_date.py -v -s --headless false
+
+
+--------------------------------------------------------------------------------
+6. RUNNING COMPLETE TEST SUITE
+--------------------------------------------------------------------------------
+# Run all tests sequentially (Headless):
+python -m pytest tests/ -v
+
+# Run all tests sequentially (Visible Browser):
+python -m pytest tests/ -v -s --headless false
+
+
+--------------------------------------------------------------------------------
+7. TEST REPORTS & SCREENSHOTS
+--------------------------------------------------------------------------------
+# Test reports (HTML & JSON) are automatically saved to:
+# reports/test_reports/TC-001/
+# reports/test_reports/TC-002/
+# reports/test_reports/TC-003/
+# reports/test_reports/TC-004/
+# reports/test_reports/TC-005/
+# reports/test_reports/TC-006/
+# reports/test_reports/TC-007/
+# reports/test_reports/TC-008/
+
+# Failure screenshots are automatically saved to:
+# reports/screenshots/
+================================================================================
